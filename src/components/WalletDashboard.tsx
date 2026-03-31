@@ -69,8 +69,21 @@ export function WalletDashboard() {
   const [loadingNFTs, setLoadingNFTs] = useState(false);
   // @ts-ignore
   const [gasSpeed, setGasSpeed] = useState<'slow' | 'standard' | 'fast'>('standard');
+  const [vpnConnecting, setVpnConnecting] = useState(false);
 
   const chain = CHAINS[selectedChain];
+
+  const handleVpnToggle = () => {
+    if (selectedVpn === 'none') {
+      setVpnConnecting(true);
+      setTimeout(() => {
+        setSelectedVpn('tor');
+        setVpnConnecting(false);
+      }, 1500);
+    } else {
+      setSelectedVpn('none');
+    }
+  };
 
   const totalPortfolioValue = Object.entries(balances).reduce((total, [chainKey, bal]) => {
     const chainInfo = CHAINS[chainKey];
@@ -203,12 +216,10 @@ export function WalletDashboard() {
           >
             {activeWallet?.name || 'Select Wallet'}
           </Button>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
             <Button
-              onClick={() => {
-                const nextIndex = VPN_OPTIONS.findIndex(v => v.id === selectedVpn) + 1;
-                setSelectedVpn(VPN_OPTIONS[nextIndex >= VPN_OPTIONS.length ? 0 : nextIndex].id);
-              }}
+              onClick={handleVpnToggle}
+              disabled={vpnConnecting}
               sx={{
                 color: '#fff',
                 minWidth: 'auto',
@@ -218,10 +229,26 @@ export function WalletDashboard() {
                 border: selectedVpn === 'none' ? 'none' : '1px solid rgba(34,197,94,0.5)',
                 textTransform: 'none',
                 '&:hover': { background: 'rgba(255,255,255,0.15)' },
+                '&:disabled': { opacity: 0.7 },
               }}
             >
-              {VPN_OPTIONS.find(v => v.id === selectedVpn)?.icon || '🌐'}
+              {vpnConnecting ? '⏳' : (VPN_OPTIONS.find(v => v.id === selectedVpn)?.icon || '🌐')}
             </Button>
+            {selectedVpn === 'tor' && !vpnConnecting && (
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 0.5,
+                px: 1,
+                py: 0.5,
+                borderRadius: '8px',
+                background: 'rgba(34,197,94,0.2)',
+                border: '1px solid rgba(34,197,94,0.5)',
+              }}>
+                <Box sx={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', animation: 'pulse 1.5s infinite' }} />
+                <Box component="span" sx={{ fontSize: '10px', color: '#22c55e' }}>VPN</Box>
+              </Box>
+            )}
             <IconButton onClick={() => setShowSettings(true)} sx={{ color: '#fff' }}>
               <Settings />
             </IconButton>
