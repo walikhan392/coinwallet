@@ -15,7 +15,7 @@ import { useWallet } from '../context/WalletContext';
 import {
   formatBalance, formatUSD, formatAddress, CHAINS,
   sendTransaction, validateAddress, getTransactionHistory, POPULAR_TOKENS,
-  getTokenBalance, executeSwap, stakeTokens,
+  getTokenBalance, executeSwap, stakeTokens, estimateGas,
   getNFTs, DAPPS, addCustomChain, getAllChains, type Transaction, type NFTItem
 } from '../utils/crypto';
 
@@ -38,6 +38,8 @@ export function WalletDashboard() {
   const useTor = selectedVpn === 'tor';
 
   const [showSend, setShowSend] = useState(false);
+  const [showConfirmTx, setShowConfirmTx] = useState(false);
+  const [estimatedGas, setEstimatedGas] = useState<string>('0');
   const [showReceive, setShowReceive] = useState(false);
   const [showBackup, setShowBackup] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -202,6 +204,23 @@ export function WalletDashboard() {
     setTxHash(null);
 
     try {
+      const gas = await estimateGas(activeWallet.address, sendForm.to, sendForm.amount, selectedChain);
+      setEstimatedGas(gas);
+      setShowConfirmTx(true);
+    } catch (e) {
+      setEstimatedGas('0.001');
+      setShowConfirmTx(true);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleConfirmSend = async () => {
+    if (!activeWallet) return;
+    setShowConfirmTx(false);
+    setSending(true);
+    
+    try {
       const hash = await sendTransaction(
         activeWallet.privateKey,
         sendForm.to,
@@ -212,6 +231,7 @@ export function WalletDashboard() {
       );
       setTxHash(hash);
       setSendForm({ to: '', amount: '' });
+      setShowSend(false);
       await refreshBalances();
     } catch (e) {
       setTxError(e instanceof Error ? e.message : 'Transaction failed');
@@ -615,6 +635,33 @@ export function WalletDashboard() {
           <Button onClick={() => setShowSend(false)} sx={{ borderRadius: '12px' }}>Cancel</Button>
           <Button onClick={handleSend} disabled={sending} variant="contained" sx={{ borderRadius: '12px', background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>
             {sending ? 'Sending...' : 'Send'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={showConfirmTx} onClose={() => setShowConfirmTx(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { background: 'rgba(22,27,34,0.95)', borderRadius: '24px' } }}>
+        <DialogTitle sx={{ color: '#fff' }}>Confirm Transaction</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ borderRadius: '12px', mb: 2 }}>
+            Please verify all details before confirming. Transactions cannot be reversed.
+          </Alert>
+          <Box sx={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', p: 2, mb: 2 }}>
+            <Typography variant="body2" sx={{ color: '#8B949E' }}>Recipient</Typography>
+            <Typography sx={{ color: '#fff', fontFamily: 'monospace', wordBreak: 'break-all' }}>{sendForm.to}</Typography>
+          </Box>
+          <Box sx={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', p: 2, mb: 2 }}>
+            <Typography variant="body2" sx={{ color: '#8B949E' }}>Amount</Typography>
+            <Typography sx={{ color: '#fff', fontSize: 20, fontWeight: 'bold' }}>{sendForm.amount} {chain?.symbol}</Typography>
+          </Box>
+          <Box sx={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', p: 2 }}>
+            <Typography variant="body2" sx={{ color: '#8B949E' }}>Estimated Gas Fee</Typography>
+            <Typography sx={{ color: '#F59E0B' }}>~{estimatedGas} {chain?.symbol}</Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setShowConfirmTx(false)} sx={{ borderRadius: '12px' }}>Cancel</Button>
+          <Button onClick={handleConfirmSend} variant="contained" sx={{ borderRadius: '12px', background: 'linear-gradient(135deg, #6366F1, #8B5CF6)' }}>
+            Confirm & Send
           </Button>
         </DialogActions>
       </Dialog>
