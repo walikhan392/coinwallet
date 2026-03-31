@@ -16,7 +16,7 @@ import {
   formatBalance, formatUSD, formatAddress, CHAINS,
   sendTransaction, validateAddress, getTransactionHistory, POPULAR_TOKENS,
   getTokenBalance, executeSwap, stakeTokens,
-  getNFTs, DAPPS, type Transaction, type NFTItem
+  getNFTs, DAPPS, addCustomChain, getAllChains, type Transaction, type NFTItem
 } from '../utils/crypto';
 
 interface TokenWithPrice {
@@ -44,6 +44,8 @@ export function WalletDashboard() {
   const [showSwap, setShowSwap] = useState(false);
   const [showStake, setShowStake] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAddChain, setShowAddChain] = useState(false);
+  const [customChainForm, setCustomChainForm] = useState({ name: '', symbol: '', rpcUrl: '', chainId: '', explorer: '', decimals: '18' });
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [swapping, setSwapping] = useState(false);
@@ -218,7 +220,7 @@ export function WalletDashboard() {
     }
   };
 
-  const mainnetChains = Object.entries(CHAINS);
+  const mainnetChains = Object.entries(getAllChains());
 
   return (
     <Box
@@ -354,7 +356,7 @@ export function WalletDashboard() {
           open={Boolean(chainAnchorEl)}
           onClose={() => setChainAnchorEl(null)}
           PaperProps={{
-            sx: { background: 'rgba(22, 27, 34, 0.95)', borderRadius: '16px', maxHeight: 300, overflowY: 'auto' }
+            sx: { background: 'rgba(22, 27, 34, 0.95)', borderRadius: '16px', maxHeight: 400, overflowY: 'auto' }
           }}
         >
           {mainnetChains.map(([key, chain]) => (
@@ -366,6 +368,12 @@ export function WalletDashboard() {
               {chain.name} ({chain.symbol})
             </MenuItem>
           ))}
+          <MenuItem
+            onClick={() => { setChainAnchorEl(null); setShowAddChain(true); }}
+            sx={{ borderTop: '1px solid rgba(255,255,255,0.1)', mt: 1 }}
+          >
+            <Add sx={{ mr: 1 }} /> Add Custom Chain
+          </MenuItem>
         </Menu>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1.5, mb: 2 }}>
@@ -712,6 +720,92 @@ export function WalletDashboard() {
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setShowSettings(false)} variant="contained" fullWidth sx={{ borderRadius: '12px' }}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={showAddChain} onClose={() => setShowAddChain(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { background: 'rgba(22,27,34,0.95)', borderRadius: '24px' } }}>
+        <DialogTitle sx={{ color: '#fff' }}>Add Custom Chain</DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Chain Name"
+            value={customChainForm.name}
+            onChange={(e) => setCustomChainForm({ ...customChainForm, name: e.target.value })}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ sx: { color: '#8B949E' } }}
+            InputProps={{ sx: { color: '#fff' } }}
+          />
+          <TextField
+            fullWidth
+            label="Symbol"
+            value={customChainForm.symbol}
+            onChange={(e) => setCustomChainForm({ ...customChainForm, symbol: e.target.value })}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ sx: { color: '#8B949E' } }}
+            InputProps={{ sx: { color: '#fff' } }}
+          />
+          <TextField
+            fullWidth
+            label="RPC URL"
+            value={customChainForm.rpcUrl}
+            onChange={(e) => setCustomChainForm({ ...customChainForm, rpcUrl: e.target.value })}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ sx: { color: '#8B949E' } }}
+            InputProps={{ sx: { color: '#fff' } }}
+          />
+          <TextField
+            fullWidth
+            label="Chain ID"
+            type="number"
+            value={customChainForm.chainId}
+            onChange={(e) => setCustomChainForm({ ...customChainForm, chainId: e.target.value })}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ sx: { color: '#8B949E' } }}
+            InputProps={{ sx: { color: '#fff' } }}
+          />
+          <TextField
+            fullWidth
+            label="Explorer URL"
+            value={customChainForm.explorer}
+            onChange={(e) => setCustomChainForm({ ...customChainForm, explorer: e.target.value })}
+            sx={{ mb: 2 }}
+            InputLabelProps={{ sx: { color: '#8B949E' } }}
+            InputProps={{ sx: { color: '#fff' } }}
+          />
+          <TextField
+            fullWidth
+            label="Decimals"
+            type="number"
+            value={customChainForm.decimals}
+            onChange={(e) => setCustomChainForm({ ...customChainForm, decimals: e.target.value })}
+            InputLabelProps={{ sx: { color: '#8B949E' } }}
+            InputProps={{ sx: { color: '#fff' } }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setShowAddChain(false)} sx={{ borderRadius: '12px' }}>Cancel</Button>
+          <Button 
+            onClick={() => {
+              if (customChainForm.name && customChainForm.symbol && customChainForm.rpcUrl) {
+                addCustomChain({
+                  name: customChainForm.name,
+                  symbol: customChainForm.symbol,
+                  rpcUrl: customChainForm.rpcUrl,
+                  chainId: parseInt(customChainForm.chainId) || 1,
+                  explorer: customChainForm.explorer || '',
+                  decimals: parseInt(customChainForm.decimals) || 18,
+                });
+                setShowAddChain(false);
+                setCustomChainForm({ name: '', symbol: '', rpcUrl: '', chainId: '', explorer: '', decimals: '18' });
+                refreshBalances();
+              }
+            }} 
+            variant="contained" 
+            fullWidth 
+            sx={{ borderRadius: '12px' }}
+          >
+            Add Chain
+          </Button>
         </DialogActions>
       </Dialog>
 

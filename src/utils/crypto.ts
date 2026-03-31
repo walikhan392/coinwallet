@@ -20,6 +20,8 @@ export interface ChainConfig {
   isTestnet?: boolean;
   faucetUrl?: string;
   isPrivacy?: boolean;
+  isBitcoin?: boolean;
+  isCustom?: boolean;
 }
 
 export interface Token {
@@ -128,6 +130,23 @@ export const CHAINS: Record<string, ChainConfig> = {
     chainId: 101,
     explorer: 'https://solscan.io',
     decimals: 9,
+  },
+  bitcoin: {
+    name: 'Bitcoin',
+    symbol: 'BTC',
+    rpcUrl: 'https://blockstream.info/api',
+    chainId: 0,
+    explorer: 'https://blockstream.info',
+    decimals: 8,
+    isBitcoin: true,
+  },
+  tron: {
+    name: 'Tron',
+    symbol: 'TRX',
+    rpcUrl: 'https://api.trongrid.io',
+    chainId: 728126428,
+    explorer: 'https://tronscan.org',
+    decimals: 6,
   },
 };
 
@@ -811,3 +830,51 @@ export const DAPPS: Record<string, { name: string; url: string; category: string
     { name: 'Base Camp', url: 'https://base.org', category: 'DeFi', logo: '🏕️' },
   ],
 };
+
+const CUSTOM_CHAINS_KEY = 'custom_chains';
+
+export function getCustomChains(): Record<string, ChainConfig> {
+  try {
+    const saved = localStorage.getItem(CUSTOM_CHAINS_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function addCustomChain(chain: ChainConfig): void {
+  const customChains = getCustomChains();
+  const key = chain.name.toLowerCase().replace(/\s+/g, '_');
+  customChains[key] = { ...chain, isCustom: true };
+  localStorage.setItem(CUSTOM_CHAINS_KEY, JSON.stringify(customChains));
+}
+
+export function removeCustomChain(chainKey: string): void {
+  const customChains = getCustomChains();
+  delete customChains[chainKey];
+  localStorage.setItem(CUSTOM_CHAINS_KEY, JSON.stringify(customChains));
+}
+
+export function getAllChains(): Record<string, ChainConfig> {
+  return { ...CHAINS, ...getCustomChains() };
+}
+
+export async function getBitcoinBalance(address: string): Promise<string> {
+  try {
+    const response = await fetch(`https://blockstream.info/api/address/${address}`);
+    const data = await response.json();
+    return (data.chain_stats?.funded_txo_count || 0).toString();
+  } catch {
+    return '0';
+  }
+}
+
+export async function getTronBalance(address: string): Promise<string> {
+  try {
+    const response = await fetch(`https://api.trongrid.io/v1/accounts/${address}`);
+    const data = await response.json();
+    return data.data?.[0]?.balance?.toString() || '0';
+  } catch {
+    return '0';
+  }
+}
