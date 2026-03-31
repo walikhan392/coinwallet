@@ -10,4 +10,6 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: TOR_PROXY
+        value: socks5://107.173.192.68:9050
     autoDeploy: true

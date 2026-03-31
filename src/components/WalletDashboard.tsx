@@ -16,7 +16,7 @@ import {
   formatBalance, formatUSD, formatAddress, CHAINS,
   sendTransaction, validateAddress, getTransactionHistory, POPULAR_TOKENS,
   getTokenBalance, executeSwap, stakeTokens,
-  getNFTs, DAPPS, VPN_OPTIONS, type Transaction, type NFTItem
+  getNFTs, DAPPS, type Transaction, type NFTItem
 } from '../utils/crypto';
 
 interface TokenWithPrice {
@@ -70,18 +70,48 @@ export function WalletDashboard() {
   // @ts-ignore
   const [gasSpeed, setGasSpeed] = useState<'slow' | 'standard' | 'fast'>('standard');
   const [vpnConnecting, setVpnConnecting] = useState(false);
+  const [vpnStatus, setVpnStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
 
   const chain = CHAINS[selectedChain];
 
-  const handleVpnToggle = () => {
+  useEffect(() => {
+    const checkVpnStatus = async () => {
+      try {
+        const response = await fetch('/api/tor-status');
+        const data = await response.json();
+        if (data.status === 'active') {
+          setVpnStatus('connected');
+        }
+      } catch {}
+    };
+    checkVpnStatus();
+  }, []);
+
+  const handleVpnToggle = async () => {
     if (selectedVpn === 'none') {
       setVpnConnecting(true);
-      setTimeout(() => {
-        setSelectedVpn('tor');
-        setVpnConnecting(false);
-      }, 1500);
+      setVpnStatus('connecting');
+      try {
+        const response = await fetch('/api/vpn/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'tor' })
+        });
+        const data = await response.json();
+        if (data.success) {
+          setSelectedVpn('tor');
+          setVpnStatus('connected');
+        } else {
+          setVpnStatus('disconnected');
+        }
+      } catch {
+        setVpnStatus('disconnected');
+      }
+      setVpnConnecting(false);
     } else {
+      await fetch('/api/vpn/disconnect', { method: 'POST' });
       setSelectedVpn('none');
+      setVpnStatus('disconnected');
     }
   };
 
@@ -225,14 +255,14 @@ export function WalletDashboard() {
                 minWidth: 'auto',
                 px: 1.5,
                 borderRadius: '12px',
-                background: selectedVpn === 'none' ? 'rgba(255,255,255,0.1)' : 'rgba(34,197,94,0.2)',
-                border: selectedVpn === 'none' ? 'none' : '1px solid rgba(34,197,94,0.5)',
+                background: vpnStatus === 'connected' ? 'rgba(34,197,94,0.3)' : 'rgba(255,255,255,0.1)',
+                border: vpnStatus === 'connected' ? '1px solid #22c55e' : 'none',
                 textTransform: 'none',
                 '&:hover': { background: 'rgba(255,255,255,0.15)' },
                 '&:disabled': { opacity: 0.7 },
               }}
             >
-              {vpnConnecting ? '⏳' : (VPN_OPTIONS.find(v => v.id === selectedVpn)?.icon || '🌐')}
+              {vpnStatus === 'connecting' ? '⏳' : (vpnStatus === 'connected' ? '🛡️' : '🌐')}
             </Button>
             {selectedVpn === 'tor' && !vpnConnecting && (
               <Box sx={{ 
