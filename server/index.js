@@ -11,6 +11,9 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 
 const TOR_PROXY = process.env.TOR_PROXY || 'socks5://localhost:9050';
+const ALLOWED_HOSTS = process.env.ALLOWED_HOSTS || 'etherscan.io,bscscan.com,polygonscan.com,arbiscan.io,optimistic.etherscan.io,snowtrace.io,basescan.org,blockstream.info,api.trongrid.io,tronscan.org,solscan.io,blockchair.com';
+const ALLOWED_HOSTS_LIST = ALLOWED_HOSTS.split(',').map(h => h.trim());
+
 let proxyAgent = null;
 
 try {
@@ -18,6 +21,15 @@ try {
   console.log(`Tor proxy configured: ${TOR_PROXY}`);
 } catch (e) {
   console.log('Tor proxy not available, using direct connections');
+}
+
+function isAllowedHost(url: string): boolean {
+  try {
+    const urlObj = new URL(url);
+    return ALLOWED_HOSTS_LIST.some(host => urlObj.hostname.endsWith(host) || urlObj.hostname === host);
+  } catch {
+    return false;
+  }
 }
 
 app.use((req, res, next) => {
@@ -82,6 +94,10 @@ app.get('/api/proxy', async (req, res) => {
     return res.status(400).json({ error: 'Missing url parameter' });
   }
 
+  if (!isAllowedHost(url)) {
+    return res.status(403).json({ error: 'Host not allowed' });
+  }
+
   try {
     const response = await axios.get(url, {
       httpAgent: proxyAgent,
@@ -100,6 +116,10 @@ app.post('/api/proxy', async (req, res) => {
   
   if (!url) {
     return res.status(400).json({ error: 'Missing url parameter' });
+  }
+
+  if (!isAllowedHost(url)) {
+    return res.status(403).json({ error: 'Host not allowed' });
   }
 
   try {

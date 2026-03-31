@@ -463,7 +463,7 @@ export async function getTransactionHistory(
   if (!chain) return [];
 
   try {
-    const apiKey = 'YourEtherscanAPIKey';
+    const apiKey = import.meta.env.VITE_ETHERSCAN_KEY || '';
     let apiUrl = '';
 
     if (chainKey.includes('ethereum')) {
@@ -843,9 +843,24 @@ export function getCustomChains(): Record<string, ChainConfig> {
 }
 
 export function addCustomChain(chain: ChainConfig): void {
+  if (!chain.name || !chain.symbol || !chain.rpcUrl) return;
+  
+  const sanitizedName = chain.name.replace(/[<>&"'`]/g, '').slice(0, 50);
+  const sanitizedSymbol = chain.symbol.replace(/[<>&"'`]/g, '').slice(0, 10);
+  const sanitizedRpc = chain.rpcUrl.replace(/[<>&"'`]/g, '').slice(0, 200);
+  const sanitizedExplorer = chain.explorer?.replace(/[<>&"'`]/g, '').slice(0, 200) || '';
+  
   const customChains = getCustomChains();
-  const key = chain.name.toLowerCase().replace(/\s+/g, '_');
-  customChains[key] = { ...chain, isCustom: true };
+  const key = sanitizedName.toLowerCase().replace(/\s+/g, '_');
+  customChains[key] = { 
+    name: sanitizedName, 
+    symbol: sanitizedSymbol, 
+    rpcUrl: sanitizedRpc, 
+    chainId: chain.chainId || 1, 
+    explorer: sanitizedExplorer, 
+    decimals: chain.decimals || 18,
+    isCustom: true 
+  };
   localStorage.setItem(CUSTOM_CHAINS_KEY, JSON.stringify(customChains));
 }
 
