@@ -20,7 +20,60 @@ try {
   console.log('Tor proxy not available, using direct connections');
 }
 
-app.use(express.static(path.join(__dirname, '../dist')));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:;");
+  next();
+});
+
+app.use(express.static(path.join(__dirname, '../dist'), {
+  maxAge: '1y',
+  etag: true,
+  lastModified: true,
+}));
+
+app.use(express.json({ limit: '10kb' }));
+
+const rateLimit = new Map();
+const RATE_LIMIT = 100;
+const RATE_WINDOW = 60000;
+
+function rateLimitMiddleware(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (!rateLimit.has(ip)) {
+    rateLimit.set(ip, { count: 0, resetTime: now + RATE_WINDOW });
+  }
+  
+  const userLimit = rateLimit.get(ip);
+  
+  if (now > userLimit.resetTime) {
+    userLimit.count = 0;
+    userLimit.resetTime = now + RATE_WINDOW;
+  }
+  
+  userLimit.count++;
+  
+  if (userLimit.count > RATE_LIMIT) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+  
+  next();
+}
+
+app.use(rateLimitMiddleware);
+
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: Date.now(),
+    tor: proxyAgent ? 'active' : 'inactive'
+  });
+});
 
 app.get('/api/proxy', async (req, res) => {
   const { url } = req.query;
@@ -71,7 +124,6 @@ app.post('/api/proxy', async (req, res) => {
 app.get('/api/tor-status', (req, res) => {
   res.json({ 
     status: proxyAgent ? 'active' : 'inactive',
-    proxy: TOR_PROXY,
     message: proxyAgent ? 'Tor VPN is active' : 'Tor VPN not configured'
   });
 });
@@ -97,7 +149,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Tor VPN: ${proxyAgent ? 'Active' : 'Inactive'}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
