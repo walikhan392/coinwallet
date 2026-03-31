@@ -26,7 +26,11 @@ try {
 function isAllowedHost(url: string): boolean {
   try {
     const urlObj = new URL(url);
-    return ALLOWED_HOSTS_LIST.some(host => urlObj.hostname.endsWith(host) || urlObj.hostname === host);
+    if (urlObj.protocol !== 'https:' && urlObj.protocol !== 'http:') {
+      return false;
+    }
+    const hostname = urlObj.hostname.toLowerCase();
+    return ALLOWED_HOSTS_LIST.some(host => hostname === host.toLowerCase());
   } catch {
     return false;
   }
@@ -37,7 +41,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:;");
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https: wss:;");
   next();
 });
 

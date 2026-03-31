@@ -199,6 +199,18 @@ export function WalletDashboard() {
       return;
     }
 
+    const amountNum = parseFloat(sendForm.amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setTxError('Invalid amount');
+      return;
+    }
+
+    const balanceNum = parseFloat(balances[selectedChain] || '0');
+    if (amountNum > balanceNum) {
+      setTxError('Insufficient balance');
+      return;
+    }
+
     setSending(true);
     setTxError(null);
     setTxHash(null);
@@ -587,7 +599,7 @@ export function WalletDashboard() {
                 key={index}
                 component="a"
                 href={dapp.url}
-                target="_blank"
+                target="_blank" rel="noopener noreferrer"
                 sx={{
                   background: 'rgba(255,255,255,0.05)',
                   borderRadius: '12px',
@@ -628,7 +640,7 @@ export function WalletDashboard() {
               sx={{ '& .MuiInputBase-input': { color: '#fff' }, '& .MuiOutlinedInput-root': { borderRadius: '12px' } }}
             />
             {txError && <Alert severity="error">{txError}</Alert>}
-            {txHash && <Alert severity="success">Sent! <a href={`${chain?.explorer}/tx/${txHash}`} target="_blank" style={{color: '#8B5CF6'}}>View</a></Alert>}
+            {txHash && <Alert severity="success">Sent! <a href={`${chain?.explorer}/tx/${txHash}`} target="_blank" rel="noopener noreferrer" style={{color: '#8B5CF6'}}>View</a></Alert>}
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>

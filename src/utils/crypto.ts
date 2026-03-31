@@ -101,10 +101,11 @@ export const CHAINS: Record<string, ChainConfig> = {
   avalancheFuji: {
     name: 'Avalanche Fuji (Testnet)',
     symbol: 'AVAX',
-    rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
-    chainId: 43114,
-    explorer: 'https://snowtrace.io',
+    rpcUrl: 'https://api.avax-test.network/ext/bc/C/rpc',
+    chainId: 43113,
+    explorer: 'https://testnet.snowtrace.io',
     decimals: 18,
+    isTestnet: true,
   },
   base: {
     name: 'Base',
@@ -263,7 +264,9 @@ export function walletFromPrivateKey(privateKey: string, name: string = 'Wallet'
 }
 
 function generateWalletId(): string {
-  return 'wallet_' + Math.random().toString(36).substring(2, 15);
+  const array = new Uint8Array(8);
+  crypto.getRandomValues(array);
+  return 'wallet_' + Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -663,36 +666,19 @@ export async function getSwapQuote(
 }
 
 export async function executeSwap(
-  privateKey: string,
+  _privateKey: string,
   fromToken: string,
-  toToken: string,
-  amount: string,
+  _toToken: string,
+  _amount: string,
   chainKey: string
 ): Promise<string> {
   const chain = CHAINS[chainKey];
   if (!chain) throw new Error('Invalid chain');
 
-  const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl);
-  const wallet = new ethers.Wallet(privateKey, provider);
-
   const fromTokenInfo = POPULAR_TOKENS[chainKey]?.find(t => t.symbol === fromToken);
-  const toTokenInfo = POPULAR_TOKENS[chainKey]?.find(t => t.symbol === toToken);
+  if (!fromTokenInfo) throw new Error('Invalid token');
 
-  if (!fromTokenInfo || !toTokenInfo) throw new Error('Invalid token');
-
-  if (fromTokenInfo.address === '0x0000000000000000000000000000000000000000') {
-    const tx = await wallet.sendTransaction({
-      to: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
-      value: ethers.utils.parseUnits(amount, 18),
-    });
-    return tx.hash;
-  }
-
-  const token = new ethers.Contract(fromTokenInfo.address, ERC20_ABI, wallet);
-  const amountWei = ethers.utils.parseUnits(amount, fromTokenInfo.decimals);
-  
-  const tx = await token.transfer('0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', amountWei);
-  return tx.hash;
+  throw new Error('Swap functionality coming soon. Please use external DEX for token swaps.');
 }
 
 export async function getStakeInfo(chainKey: string): Promise<StakeInfo[]> {

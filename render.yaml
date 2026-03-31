@@ -11,5 +11,8 @@ services:
       - key: PORT
         value: 10000
       - key: TOR_PROXY
-        value: socks5://107.173.192.68:9050
+        value: socks5://localhost:9050
+        description: Tor proxy URL - set your own Tor relay for VPN functionality
+      - key: ALLOWED_HOSTS
+        value: etherscan.io,bscscan.com,polygonscan.com,arbiscan.io,optimistic.etherscan.io,snowtrace.io,basescan.org,blockstream.info,api.trongrid.io,tronscan.org,solscan.io,blockchair.com
     autoDeploy: true
