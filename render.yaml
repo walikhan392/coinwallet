@@ -1,0 +1,16 @@
+name: coinwallet
+services:
+  - type: web
+    name: coinwallet
+    env: node
+    buildCommand: |
+      apt-get update && apt-get install -y tor
+      npm install
+      npm run build
+    startCommand: tor & sleep 5 && node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    autoDeploy: false
