@@ -229,8 +229,66 @@ const ERC20_ABI = [
   'function decimals() view returns (uint8)',
   'function balanceOf(address owner) view returns (uint256)',
   'function transfer(address to, uint256 amount) returns (bool)',
-  'event Transfer(address indexed from, address indexed to, uint256 value)',
+  'event Transfer(address indexed from, indexed to, uint256 value)',
 ];
+
+const ENCRYPTION_KEY_ID = 'wallet_encryption_key';
+
+async function getEncryptionKey(): Promise<CryptoKey> {
+  const stored = localStorage.getItem(ENCRYPTION_KEY_ID);
+  if (stored) {
+    return crypto.subtle.importKey(
+      'jwk',
+      JSON.parse(stored),
+      { name: 'AES-GCM' },
+      true,
+      ['encrypt', 'decrypt']
+    );
+  }
+  const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    true,
+    ['encrypt', 'decrypt']
+  );
+  const exported = await crypto.subtle.exportKey('jwk', key);
+  localStorage.setItem(ENCRYPTION_KEY_ID, JSON.stringify(exported));
+  return key;
+}
+
+export async function encryptWallet(data: string): Promise<string> {
+  const key = await getEncryptionKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(data)
+  );
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  return btoa(String.fromCharCode(...combined));
+}
+
+export async function decryptWallet(encryptedData: string): Promise<string> {
+  const key = await getEncryptionKey();
+  const combined = new Uint8Array(atob(encryptedData).split('').map(c => c.charCodeAt(0)));
+  const iv = combined.slice(0, 12);
+  const data = combined.slice(12);
+  const decrypted = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    data
+  );
+  return new TextDecoder().decode(decrypted);
+}
+
+export async function hashPin(pin: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 export function generateMnemonic(): string {
   const wallet = ethers.Wallet.createRandom();
